@@ -9,7 +9,8 @@ Tile::Tile(int nx, int ny){
 	type = rand()%2;
 	mist = false;
 	owner = rand()%N;
-	power = owner&&type==0 ? rand()%7 : 0;
+	power = owner&&type==0 ? rand()%8 : 0;
+	powerN = power;
 }
 
 void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites[TILES], Sprite* tank, bool hover, bool selected, bool nearbyN, float px, float py, float z){
@@ -70,12 +71,12 @@ void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites
 
 
 	//tank->setColor(pCols[owner]);
-	for(int i=0; i<std::min(3,power); i++){
+	for(int i=0; i<min(3,power); i++){
 		tank->setPosition((x*TE*0.86*2+i*2+10 - (y%2)*(TE*0.86) - px)*z, (y*TE*1.49+i*17+7 - py)*z); //TODO What is 0.86 and 1.5?
 		tank->setScale(0.3*z,0.3*z);
 		window.draw(*tank);	
 	}
-	for(int i=3; i<std::min(6,power); i++){
+	for(int i=3; i<min(6,power); i++){
 		tank->setPosition((x*TE*0.86*2+i*2+30 - (y%2)*(TE*0.86) - px)*z, (y*TE*1.49+i*17-42 - py)*z); //TODO What is 0.86 and 1.5?
 		tank->setScale(0.3*z,0.3*z);
 		window.draw(*tank);	
@@ -91,11 +92,17 @@ void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites
 		window.draw(hexagon);
 		
 		if(power>0){
-			//String pS(std::to_string(power));
-			Text p(std::to_string(power), *font);
-			p.setCharacterSize(30*z);
-			p.setPosition((x*TE*0.86*2+30 - (y%2)*(TE*0.86) - px)*z, (y*TE*1.49+20 - py)*z);
-			window.draw(p);
+			//String pS(to_string(power));
+			Text pN(to_string(powerN), *font);
+			pN.setCharacterSize(30*z);
+			pN.setPosition(((x+0.5)*TE*0.86*2 - (y%2)*(TE*0.86) - px + 2)*z - pN.getLocalBounds().width/2, (y*TE*1.49 + (power == powerN ? 20 : 10) - py)*z);
+			window.draw(pN);
+			if(power != powerN){
+				Text p("("+to_string(power)+")", *font);
+				p.setCharacterSize(15*z);
+				p.setPosition(((x+0.5)*TE*0.86*2 - (y%2)*(TE*0.86) - px + 2)*z - p.getLocalBounds().width/2, (y*TE*1.49+40 - py)*z);
+				window.draw(p);
+			}
 		}
 	}
 }

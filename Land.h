@@ -4,6 +4,7 @@
 #include <time.h> //TODO Remove (debugging)
 #include <stdlib.h>
 using namespace sf;
+using namespace std;
 
 #include "Interface.h"
 
@@ -34,21 +35,10 @@ class Tile{
 		CircleShape hexagon;
 		int owner;
 		int power; //Number of tanks on tile
+		int powerN; //New power given current pending actions
 };
 
-class HUD : public Interface{
-	public:
-		HUD();
-		void draw(RenderWindow&, Font* font, Color[N], std::string[N], int player, Tile* s, float px, float py, float z);
-		void events(Event&, RenderWindow& window);
-		void setTiles(Tile* t, Tile* s);
-		bool isBusy(int x, int y, float px, float py, float z); //Returns true if point on screen is busy taking HUD input
-		Tile* selected;
-		Tile* target;
-	private:
-		int n; //Power to be transferred
-		RectangleShape moveBox;
-};
+#include "HUD.h"
 
 class Land : public Interface{
 	public:
@@ -62,7 +52,7 @@ class Land : public Interface{
 
 		//TODO Make this static
 		Color pCols[N]; //Identifying color of each player (0th is no owner)
-		std::string pNames[N]; //Name of each player
+		string pNames[N]; //Name of each player
 
 		HUD hud;
 

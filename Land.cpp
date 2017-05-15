@@ -25,7 +25,7 @@ Land::Land() : Interface(){
 
 	for(int i=0; i<TILES; i++){
 		tiles[i] = Image();
-		tiles[i].loadFromFile("assets/tiles/"+std::to_string(i)+".png");
+		tiles[i].loadFromFile("assets/tiles/"+to_string(i)+".png");
 	}
 
 	tank = Image();
@@ -39,7 +39,7 @@ Land::Land() : Interface(){
 void Land::draw(RenderWindow& window){
 	
 	Color pCols[] = {Color(255,255,255),Color(100,100,255),Color(255,150,150)}; //TODO This should be static
-	std::string pNames[] = {"none", "Blue", "Red"};
+	string pNames[] = {"none", "Blue", "Red"};
 
 	Interface::draw(window);
 	
