@@ -21,7 +21,67 @@ HUD::HUD() : Interface(){
 	actsBounds = RectangleShape();
 }
 
-void HUD::draw(RenderWindow& window, Font* font, Color pCols[N], string pNames[N], int player, Tile* s, float px, float py, float z){
+void HUD::drawAction(int a, int n, RenderWindow& window, Font* font, Color pCols[N], string pNames[N], int player, Tile* s, float px, float py, float z){
+	
+	int tx = actions[a].to->x;
+	int ty = actions[a].to->y;
+
+	if(actions[a].from != NULL){
+		RectangleShape line;
+		line.setFillColor(Color(250,250,250));
+		//line.setOutlineThickness(2);
+		//line.setOutlineColor(Color(26,26,26));
+		CircleShape arrow(10,3);
+		arrow.setOrigin(10,0);
+		arrow.setFillColor(Color(250,250,250));
+		//arrow.setOutlineThickness(2);
+		//arrow.setOutlineColor(Color(26,26,26));
+
+		RectangleShape pBox(Vector2f(20*z,20*z));
+		pBox.setOrigin(10*z,10*z);
+		//pBox.setOutlineThickness(2);
+		//pBox.setOutlineColor(Color(26,26,26));
+		pCols[player].a = 240;
+		pBox.setFillColor(pCols[player]);
+		Text pNum("0", *font);
+		pNum.setCharacterSize(14*z);
+		//pNum.setFillColor(Color(26,26,26));
+		
+		int fx = actions[a].from->x;
+		int fy = actions[a].from->y;
+
+		fx = ((fx+1)*TE*0.86*2 - (fy%2)*(TE*0.86) - px + 10)*z;
+		fy = ((fy+1)*TE*1.49 - py + 20)*z;
+
+		tx = ((tx+1)*TE*0.86*2 - (ty%2)*(TE*0.86) - px + 10)*z;
+		ty = ((ty+1)*TE*1.49 - py + 20)*z;
+		
+		float o = ty-fy;
+		float a = tx-fx;
+		
+		line.setSize(Vector2f(sqrt(pow(o,2)+pow(a,2)) - 10, 5));
+		line.setOrigin(-5,2.5);
+		line.setRotation((a<0?180:0)+atan(o/a)/(2*3.14159)*360);
+		arrow.setRotation(line.getRotation()+90);
+		line.setPosition(fx-TE*z,fy-TE*z);
+		arrow.setPosition(tx-TE*z, ty-TE*z);
+
+		window.draw(line);
+		window.draw(arrow);
+
+		pBox.setPosition((fx+a/2)-TE*z, (fy+o/2)-TE*z);
+		window.draw(pBox);
+		pNum.setString(to_string(n));
+		pNum.setOrigin(pNum.getLocalBounds().width/2 + z, 9*z);
+		pNum.setPosition((fx+a/2)-TE*z, (fy+o/2)-TE*z);
+		window.draw(pNum);
+
+	}else{
+		
+	}
+}
+
+void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], string pNames[N], int player, Tile* s, float px, float py, float z){
 
 	if(s == NULL){
 		selected = NULL;
@@ -30,7 +90,8 @@ void HUD::draw(RenderWindow& window, Font* font, Color pCols[N], string pNames[N
 	}
 
 	Vector2u size = window.getSize();
-
+	
+	/*
 	RectangleShape line;
 	line.setFillColor(Color(250,250,250));
 	//line.setOutlineThickness(2);
@@ -92,6 +153,10 @@ void HUD::draw(RenderWindow& window, Font* font, Color pCols[N], string pNames[N
 			
 		}
 	}
+	*/
+	if(land->anim == false){
+		for(int i=0; i<actions.size(); i++)drawAction(i, actions[i].n, window,font,pCols,pNames,player,s,px,py,z);
+	}
 
 	bar.setSize(Vector2f(size.x, PAVH+60));
 	bar.setPosition(0,size.y-bar.getLocalBounds().height);
@@ -121,12 +186,12 @@ void HUD::draw(RenderWindow& window, Font* font, Color pCols[N], string pNames[N
 	for(int i=0; i<actions.size(); i++){
 		vLoc = size.y - 25 - (actions.size()-i)*14 + actsScroll;
 		if(vLoc>size.y-PAVH-10 && vLoc<size.y-30){
-			tx = actions[i].to->x;
-			ty = actions[i].to->y;
+			int tx = actions[i].to->x;
+			int ty = actions[i].to->y;
 
 			if(actions[i].from != NULL){
-				fx = actions[i].from->x;
-				fy = actions[i].from->y;
+				int fx = actions[i].from->x;
+				int fy = actions[i].from->y;
 
 				action.setString("Moving "+to_string(actions[i].n)+" from ("+to_string(fx)+","+to_string(fy)+") to ("+to_string(tx)+","+to_string(ty)+").");
 			}else{
@@ -171,7 +236,7 @@ void HUD::draw(RenderWindow& window, Font* font, Color pCols[N], string pNames[N
 	
 }
 
-void HUD::events(Event& event, RenderWindow& window){
+void HUD::events(Event& event, Land* land, RenderWindow& window){
 	if(selected != NULL && target != NULL && moveBox.getGlobalBounds().contains(Mouse::getPosition(window).x, Mouse::getPosition(window).y)){
 		switch(event.type){
 			case Event::MouseWheelScrolled:
@@ -215,6 +280,10 @@ void HUD::events(Event& event, RenderWindow& window){
 					actsScroll += 10*event.mouseWheelScroll.delta;
 				}
 				break;
+			case Event::KeyReleased:
+				if(event.key.code == Keyboard::Return){ //TODO This should actually use a clickable button
+					land->startAnim();
+				}
 			default:
 				break;
 		}
@@ -240,3 +309,5 @@ bool HUD::isBusy(int x, int y, float px, float py, float z){
 	return (target!=NULL && moveBox.getGlobalBounds().contains(Vector2f(x,y))) || bar.getGlobalBounds().contains(Vector2f(x,y)); //Could include 'actsBounds'
 	
 }
+
+

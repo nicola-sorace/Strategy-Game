@@ -11,6 +11,10 @@ Land::Land() : Interface(){
 	px = -100;
 	py = -20;
 	z = 1;
+	
+	tpx = px;
+	tpy = py;
+	tz = z;
 
 	mouse = Vector2i(-1,-1);
 
@@ -34,35 +38,37 @@ Land::Land() : Interface(){
 	font.loadFromFile("assets/Roboto-Regular.ttf");
 
 	hud = HUD();
+
+	curAct = 0;
+	anim = false;
+	clock = Clock();
+	doneAction = false;
 }
 
 void Land::draw(RenderWindow& window){
-	
-	Color pCols[] = {Color(255,255,255),Color(100,100,255),Color(255,150,150)}; //TODO This should be static
+	Interface::draw(window);
+
+	Color pCols[] = {Color(255,255,255),Color(100,100,255),Color(255,150,150)};
 	string pNames[] = {"none", "Blue", "Red"};
 
-	Interface::draw(window);
-	
+	px += (tpx - px)/TSTEPS;
+	py += (tpy - py)/TSTEPS;
+	z += (tz - z)/TSTEPS;
+
+
 
 	if(Mouse::isButtonPressed(Mouse::Middle)){
 		if(mouse != Vector2i(-1,-1)){
 			px = px - (Mouse::getPosition(window).x - mouse.x)/z;
 			py = py - (Mouse::getPosition(window).y - mouse.y)/z;
+
+			tpx = px;
+			tpy = py;
 		}	
 		mouse = Mouse::getPosition(window);
 	}else{
 		mouse = Vector2i(-1,-1);
 	}
-
-	/*
-	mapT = Texture();
-	mapT.loadFromImage(map);
-	mapS = Sprite(mapT);
-	mapS.setPosition((-px-100)*z, (-py-20)*z);
-	mapS.setScale(z,z);
-
-	window.draw(mapS);
-	*/
 
 	for(int i=0; i<TILES; i++){
 		tilesT[i] = Texture();
@@ -86,8 +92,48 @@ void Land::draw(RenderWindow& window){
 			t->draw(window, &font, pCols, tilesS, &tankS, hover, selected==t, nearby, px, py, z);
 		}
 	}
+
+	if(anim){
+		Int32 t = clock.getElapsedTime().asMilliseconds();
+		action* a = &hud.actions[curAct];
+		if(t<=ATICK && a->from != NULL){
+			//Show tile before move
+			tpx = (a->from->x+0.5)*TE*0.86*2-window.getSize().x/(2*z); //Note that these are mere approximations
+			tpy = (a->from->y+2)*TE*1.49-window.getSize().y/(2*z);
+		}else if(t<=2*ATICK){
+			//TODO Show move
+			//void drawAction(int a,int n,RenderWindow&, Font*, Color[N], string[N], int player, Tile* s, float px, float py, float z);
+			hud.drawAction(curAct,a->n,window,&font,pCols,pNames,player,selected,px,py,z);
+		}else if(t<=3*ATICK){
+			//TODO Show tiles after move
+			if(!doneAction){
+				if(a->from != NULL){
+					a->from->attack(a->to, a->n);
+				}else{
+					//TODO Here goes code for creating power
+					cout << "SHIIITTTWHAAT???";
+				}
+				doneAction = true;
+			}
+		}else if(!doneAction){ //In case of extreme lag, action may have not executed
+			if(a->from != NULL){
+				a->from->attack(a->to, a->n);
+			}else{
+				//TODO Here goes code for creating power
+			}
+
+		}else if(curAct<hud.actions.size()-1){
+			doneAction = false;
+			curAct++;
+			clock.restart();
+		}else{
+			doneAction = false;
+			hud.actions.clear();
+			anim = false;
+		}
+	}
 	
-	hud.draw(window, &font, pCols, pNames, player, selected, px, py, z);
+	hud.draw(window, &font, this, pCols, pNames, player, selected, px, py, z);
 }
 
 void Land::events(Event& event, RenderWindow& window){
@@ -98,6 +144,10 @@ void Land::events(Event& event, RenderWindow& window){
 					z += z*event.mouseWheelScroll.delta*0.2;
 					px += (event.mouseWheelScroll.x*event.mouseWheelScroll.delta*0.2)/z;
 					py += (event.mouseWheelScroll.y*event.mouseWheelScroll.delta*0.2)/z;
+					
+					tz = z;
+					tpx = px;
+					tpy = py;
 				}
 				break;
 			case Event::MouseButtonReleased:
@@ -113,7 +163,16 @@ void Land::events(Event& event, RenderWindow& window){
 				break;
 		}
 	}else{
-		hud.events(event, window);
+		hud.events(event, this, window);
 		if(hud.selected == NULL)selected = NULL; //TODO likely to cause issues
 	}
+}
+
+void Land::startAnim(){
+	//TODO Other player's actions must be loaded in before this point
+	
+	curAct = 0;
+	clock.restart();
+	anim = true;
+	tz = 2;
 }
