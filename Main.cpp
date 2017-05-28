@@ -6,7 +6,10 @@ using namespace sf;
 #include "Land.h"
 
 int main(){
-	RenderWindow window(VideoMode::getFullscreenModes()[0], "Title", Style::Fullscreen);
+	ContextSettings settings;
+	settings.antialiasingLevel = 8;
+
+	RenderWindow window(VideoMode::getFullscreenModes()[0], "Strategy Game", Style::Fullscreen, settings);
 	window.setFramerateLimit(24);
 
 	Interface* interface = new Land();
