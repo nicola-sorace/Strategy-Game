@@ -22,7 +22,7 @@ HUD::HUD() : Interface(){
 }
 
 void HUD::drawAction(int a, int n, RenderWindow& window, Font* font, Color pCols[N], string pNames[N], int player, Tile* s, float px, float py, float z){
-	
+
 	int tx = actions[a].to->x;
 	int ty = actions[a].to->y;
 
@@ -46,7 +46,7 @@ void HUD::drawAction(int a, int n, RenderWindow& window, Font* font, Color pCols
 		Text pNum("0", *font);
 		pNum.setCharacterSize(14*z);
 		//pNum.setFillColor(Color(26,26,26));
-		
+
 		int fx = actions[a].from->x;
 		int fy = actions[a].from->y;
 
@@ -55,10 +55,10 @@ void HUD::drawAction(int a, int n, RenderWindow& window, Font* font, Color pCols
 
 		tx = ((tx+1)*TE*0.86*2 - (ty%2)*(TE*0.86) - px + 10)*z;
 		ty = ((ty+1)*TE*1.49 - py + 20)*z;
-		
+
 		float o = ty-fy;
 		float a = tx-fx;
-		
+
 		line.setSize(Vector2f(sqrt(pow(o,2)+pow(a,2)) - 10, 5));
 		line.setOrigin(-5,2.5);
 		line.setRotation((a<0?180:0)+atan(o/a)/(2*3.14159)*360);
@@ -77,7 +77,7 @@ void HUD::drawAction(int a, int n, RenderWindow& window, Font* font, Color pCols
 		window.draw(pNum);
 
 	}else{
-		
+
 	}
 }
 
@@ -90,7 +90,7 @@ void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], str
 	}
 
 	Vector2u size = window.getSize();
-	
+
 	/*
 	RectangleShape line;
 	line.setFillColor(Color(250,250,250));
@@ -128,10 +128,10 @@ void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], str
 
 			tx = ((tx+1)*TE*0.86*2 - (ty%2)*(TE*0.86) - px + 10)*z;
 			ty = ((ty+1)*TE*1.49 - py + 20)*z;
-			
+
 			o = ty-fy;
 			a = tx-fx;
-			
+
 			line.setSize(Vector2f(sqrt(pow(o,2)+pow(a,2)) - 10, 5));
 			line.setOrigin(-5,2.5);
 			line.setRotation((a<0?180:0)+atan(o/a)/(2*3.14159)*360);
@@ -150,7 +150,7 @@ void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], str
 			window.draw(pNum);
 
 		}else{
-			
+
 		}
 	}
 	*/
@@ -170,10 +170,10 @@ void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], str
 	barText.setCharacterSize(30);
 	barText.setPosition(10,size.y-50);
 	window.draw(barText);
-	
+
 	actsBounds.setSize(Vector2f(PAVW, PAVH));
 	actsBounds.setFillColor(Color(26,26,26));
-	actsBounds.setPosition(size.x - PAVW - 10, size.y - PAVH - 10); 
+	actsBounds.setPosition(size.x - PAVW - 10, size.y - PAVH - 10);
 	window.draw(actsBounds);
 
 	barText.setString("Pending Actions:");
@@ -218,9 +218,9 @@ void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], str
 		Text moveTitle(friendly ? "Moving" : "Attacking", *font);
 		moveTitle.setPosition(x+(ATTW-moveTitle.getLocalBounds().width)/2, y+5);
 		window.draw(moveTitle);
-		
+
 		if(friendly||true){ //TODO Attack
-			Text numberP(to_string(n), *font); 
+			Text numberP(to_string(n), *font);
 			numberP.setCharacterSize(100);
 			numberP.setPosition(x+(ATTW-numberP.getLocalBounds().width)/2, y+40);
 			window.draw(numberP);
@@ -233,7 +233,7 @@ void HUD::draw(RenderWindow& window, Font* font, Land* land, Color pCols[N], str
 			window.draw(moveTitle);
 		}
 	}
-	
+
 }
 
 void HUD::events(Event& event, Land* land, RenderWindow& window){
@@ -282,7 +282,8 @@ void HUD::events(Event& event, Land* land, RenderWindow& window){
 				break;
 			case Event::KeyReleased:
 				if(event.key.code == Keyboard::Return){ //TODO This should actually use a clickable button
-					land->startAnim();
+					Land::pending = PUSHACTIONS;
+					//land->startAnim();
 				}
 			default:
 				break;
@@ -293,7 +294,7 @@ void HUD::events(Event& event, Land* land, RenderWindow& window){
 void HUD::setTiles(Tile* t, Tile* s){
 	target = t;
 	selected = s;
-	
+
 	for(int i=0; i<actions.size(); i++){
 		if(s != NULL && actions[i].from == s && actions[i].to == t){
 			actionE = &actions[i];
@@ -307,7 +308,5 @@ void HUD::setTiles(Tile* t, Tile* s){
 
 bool HUD::isBusy(int x, int y, float px, float py, float z){
 	return (target!=NULL && moveBox.getGlobalBounds().contains(Vector2f(x,y))) || bar.getGlobalBounds().contains(Vector2f(x,y)); //Could include 'actsBounds'
-	
+
 }
-
-

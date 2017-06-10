@@ -13,7 +13,7 @@ int main(){
 	window.setFramerateLimit(24);
 
 	Interface* interface = new Land();
-	
+
 	while(window.isOpen()){
 
 		Event event;

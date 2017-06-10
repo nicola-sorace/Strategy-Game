@@ -6,11 +6,11 @@ Tile::Tile(){
 Tile::Tile(int nx, int ny){
 	x = nx;
 	y = ny;
-	type = rand()%2;
-	mist = false;
-	owner = rand()%N;
-	power = owner&&type==0 ? rand()%8 : 0;
-	powerN = power;
+	//type = rand()%2;
+	//mist = false;
+	//owner = rand()%N;
+	//power = owner&&type==0 ? rand()%8 : 0;
+	//powerN = power;
 }
 
 void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites[TILES], Sprite* tank, bool hover, bool selected, bool nearbyN, float px, float py, float z){
@@ -33,12 +33,12 @@ void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites
 	for(int i=0; i<min(3,power); i++){
 		tank->setPosition((x*TE*0.86*2+i*2+10 - (y%2)*(TE*0.86) - px)*z, (y*TE*1.49+i*17+7 - py)*z); //TODO What is 0.86 and 1.5?
 		tank->setScale(0.3*z,0.3*z);
-		window.draw(*tank);	
+		window.draw(*tank);
 	}
 	for(int i=3; i<min(6,power); i++){
 		tank->setPosition((x*TE*0.86*2+i*2+30 - (y%2)*(TE*0.86) - px)*z, (y*TE*1.49+i*17-42 - py)*z); //TODO What is 0.86 and 1.5?
 		tank->setScale(0.3*z,0.3*z);
-		window.draw(*tank);	
+		window.draw(*tank);
 	}
 
 	hexagon.setPosition((x*TE*0.86*2 - (y%2)*(TE*0.86) - px)*z, (y*TE*1.49 - py)*z); //TODO What is 0.86 and 1.5?
@@ -49,7 +49,7 @@ void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites
 		hexagon.setFillColor(pCols[owner]);//Color(0,0,100,100));
 
 		window.draw(hexagon);
-		
+
 		if(power>0){
 			//String pS(to_string(power));
 			Text pN(to_string(powerN), *font);

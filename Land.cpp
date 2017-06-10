@@ -1,4 +1,123 @@
 #include "Land.h"
+int Land::pending = DONOTHING; //Next network flag to broadcast
+
+void printRequest(TcpSocket* socket, string request){
+	cout << socket->getRemoteAddress() <<": "<< request << endl;
+}
+
+int Land::client(){
+	TcpSocket gameSocket;
+	TcpSocket* socket = &gameSocket; //Placeholder pointer
+	if(socket->connect("localhost", 4242) == Socket::Done){
+		string banner;
+		Packet packet;
+
+		socket->receive(packet);
+		packet >> banner;
+		cout << banner << endl;
+
+		packet.clear();
+		packet << GRIDUPDATE;
+		socket->send(packet);
+
+		int x,y,type,owner,power;
+
+		cout << "Getting map...";
+		for(int i=0; i<LW*LH; i++){
+			packet.clear();
+			socket->receive(packet);
+			packet >> x >> y >> type >> owner >> power;
+			//cout << to_string(x) << ":" << to_string(y) << ":" << to_string(owner) << ":" << to_string(power) << endl;
+			grid[x][y].type = type;
+			grid[x][y].owner = owner;
+			grid[x][y].power = power;
+			grid[x][y].powerN = power;
+		}
+		cout << "success" << endl;
+
+		int request = 0;
+		while(true){
+			//SEND REQUEST:
+			int tmpPend = pending; //Clone value so it can't be modified by other threads
+			packet.clear();
+			packet << tmpPend;
+			socket->send(packet);
+			switch(tmpPend){
+				case PUSHACTIONS:
+					packet.clear();
+					packet << static_cast<int>(hud.actions.size());
+					socket->send(packet);
+					for(int i=0; i<hud.actions.size(); i++){
+						packet.clear();
+						packet << hud.actions[i].from->x << hud.actions[i].from->y << hud.actions[i].to->x << hud.actions[i].to->y << hud.actions[i].n;
+						socket->send(packet);
+					}
+					break;
+				default:
+					break;
+			}
+			pending = DONOTHING;
+
+			//INTERPRET RESPONSE:
+			packet.clear();
+			if(socket->receive(packet) != Socket::Status::Done)cout << "Error: Server failed to respond" << endl;
+			packet >> request;
+
+			if(socket->getRemoteAddress() != IpAddress::None && request>0){
+
+				switch(request){
+					case DONOTHING:
+						//printRequest(&socket,"DO NOTHING");
+						break;
+					case ENDROUND:
+						cout << "Server declared end of round." << endl;
+						int actLength;
+						packet.clear();
+						socket->receive(packet);
+						packet >> actLength;
+
+						cout << "Attempting to receive "<<to_string(actLength)<<" actions..." << endl;
+						hud.actions.clear();
+						for(int i=0; i<actLength; i++){
+							action actionN;
+							int fx, fy; //From tile
+							int tx, ty; //To tile
+							int power;
+
+							packet.clear();
+							socket->receive(packet);
+							packet >> fx >> fy >> tx >> ty >> power;
+
+							actionN.from = &grid[fx][fy];
+							actionN.to = &grid[tx][ty];
+							actionN.n = power;
+							hud.actions.push_back(actionN);
+						}
+						cout << "Received " << to_string(actLength) << " actions." << endl;
+
+						startAnim();
+
+						break;
+					default:
+						printRequest(socket,"UNRECOGNIZED COMMAND: "+to_string(request));
+						break;
+				}
+				request = 0;
+			}else{
+				cout << "Lost connection to server" << endl;
+				break;
+			}
+		}
+
+	}
+
+	cout << "ERR" << endl;
+	return 0;
+}
+
+void Land::startNetwork(Land* land){
+	land->client();
+}
 
 Land::Land() : Interface(){
 	srand (time(NULL));
@@ -11,7 +130,7 @@ Land::Land() : Interface(){
 	px = -100;
 	py = -20;
 	z = 1;
-	
+
 	tpx = px;
 	tpy = py;
 	tz = z;
@@ -43,6 +162,9 @@ Land::Land() : Interface(){
 	anim = false;
 	clock = Clock();
 	doneAction = false;
+
+	thread connection(startNetwork, this);
+	connection.detach();
 }
 
 void Land::draw(RenderWindow& window){
@@ -64,7 +186,7 @@ void Land::draw(RenderWindow& window){
 
 			tpx = px;
 			tpy = py;
-		}	
+		}
 		mouse = Mouse::getPosition(window);
 	}else{
 		mouse = Vector2i(-1,-1);
@@ -87,7 +209,7 @@ void Land::draw(RenderWindow& window){
 			bool hover = sqrt(pow(d.x,2)+pow(d.y,2)) < t->hexagon.getRadius();
 			if(hover)hovered = t;
 
-			bool nearby = selected!=NULL && selected!=t && pow(t->x-selected->x,2)+pow(t->y-selected->y,2) < 4 && (t->y == selected->y || (t->y%2==0 ? t->x <= selected->x : t->x >= selected->x)); 
+			bool nearby = selected!=NULL && selected!=t && pow(t->x-selected->x,2)+pow(t->y-selected->y,2) < 4 && (t->y == selected->y || (t->y%2==0 ? t->x <= selected->x : t->x >= selected->x));
 
 			t->draw(window, &font, pCols, tilesS, &tankS, hover, selected==t, nearby, px, py, z);
 		}
@@ -132,7 +254,7 @@ void Land::draw(RenderWindow& window){
 			anim = false;
 		}
 	}
-	
+
 	hud.draw(window, &font, this, pCols, pNames, player, selected, px, py, z);
 }
 
@@ -144,7 +266,7 @@ void Land::events(Event& event, RenderWindow& window){
 					z += z*event.mouseWheelScroll.delta*0.2;
 					px += (event.mouseWheelScroll.x*event.mouseWheelScroll.delta*0.2)/z;
 					py += (event.mouseWheelScroll.y*event.mouseWheelScroll.delta*0.2)/z;
-					
+
 					tz = z;
 					tpx = px;
 					tpy = py;
@@ -170,7 +292,7 @@ void Land::events(Event& event, RenderWindow& window){
 
 void Land::startAnim(){
 	//TODO Other player's actions must be loaded in before this point
-	
+
 	curAct = 0;
 	clock.restart();
 	anim = true;
