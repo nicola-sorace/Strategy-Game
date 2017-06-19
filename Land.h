@@ -19,10 +19,11 @@ using namespace std;
 #define LH 16
 
 //Network Flags
-#define DONOTHING 1
-#define GRIDUPDATE 2
-#define PUSHACTIONS 3 //Client request to add actions to server
-#define ENDROUND 4 //Broadcast round over and list of actions
+#define DO_NOTHING 1
+#define GRID_UPDATE 2
+#define PLAYERS_UPDATE 3
+#define PUSH_ACTIONS 4 //Client request to add actions to server
+#define END_ROUND 5 //Broadcast round over and list of actions
 
 class Tile{
 	public:

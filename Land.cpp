@@ -1,5 +1,5 @@
 #include "Land.h"
-int Land::pending = DONOTHING; //Next network flag to broadcast
+int Land::pending = DO_NOTHING; //Next network flag to broadcast
 
 void printRequest(TcpSocket* socket, string request){
 	cout << socket->getRemoteAddress() <<": "<< request << endl;
@@ -9,15 +9,27 @@ int Land::client(){
 	TcpSocket gameSocket;
 	TcpSocket* socket = &gameSocket; //Placeholder pointer
 	if(socket->connect("localhost", 4242) == Socket::Done){
+
+		//Get server version
 		string banner;
 		Packet packet;
-
 		socket->receive(packet);
 		packet >> banner;
-		cout << banner << endl;
+		cout << banner << endl; //TODO Check banner for valid version
 
+		//Send player's name
 		packet.clear();
-		packet << GRIDUPDATE;
+		packet << "Player Name";
+		socket->send(packet);
+
+		//Get player's ID
+		packet.clear();
+		socket->receive(packet);
+		packet >> player;
+
+		//Receive map
+		packet.clear();
+		packet << GRID_UPDATE;
 		socket->send(packet);
 
 		int x,y,type,owner,power;
@@ -35,6 +47,19 @@ int Land::client(){
 		}
 		cout << "success" << endl;
 
+		//Receive players
+		packet.clear();
+		packet << PLAYERS_UPDATE;
+		socket->send(packet);
+
+		cout << "Getting player list...";
+		for(int i=1; i<N; i++){
+			packet.clear();
+			socket->receive(packet);
+			packet >> pNames[i]; //TODO Custom player colors
+		}
+		cout << "success" << endl;
+
 		int request = 0;
 		while(true){
 			//SEND REQUEST:
@@ -43,7 +68,7 @@ int Land::client(){
 			packet << tmpPend;
 			socket->send(packet);
 			switch(tmpPend){
-				case PUSHACTIONS:
+				case PUSH_ACTIONS:
 					packet.clear();
 					packet << static_cast<int>(hud.actions.size());
 					socket->send(packet);
@@ -56,7 +81,7 @@ int Land::client(){
 				default:
 					break;
 			}
-			pending = DONOTHING;
+			pending = DO_NOTHING;
 
 			//INTERPRET RESPONSE:
 			packet.clear();
@@ -66,10 +91,10 @@ int Land::client(){
 			if(socket->getRemoteAddress() != IpAddress::None && request>0){
 
 				switch(request){
-					case DONOTHING:
+					case DO_NOTHING:
 						//printRequest(&socket,"DO NOTHING");
 						break;
-					case ENDROUND:
+					case END_ROUND:
 						cout << "Server declared end of round." << endl;
 						int actLength;
 						packet.clear();
@@ -223,11 +248,11 @@ void Land::draw(RenderWindow& window){
 			tpx = (a->from->x+0.5)*TE*0.86*2-window.getSize().x/(2*z); //Note that these are mere approximations
 			tpy = (a->from->y+2)*TE*1.49-window.getSize().y/(2*z);
 		}else if(t<=2*ATICK){
-			//TODO Show move
+			//Show move
 			//void drawAction(int a,int n,RenderWindow&, Font*, Color[N], string[N], int player, Tile* s, float px, float py, float z);
 			hud.drawAction(curAct,a->n,window,&font,pCols,pNames,player,selected,px,py,z);
 		}else if(t<=3*ATICK){
-			//TODO Show tiles after move
+			//Show tiles after move
 			if(!doneAction){
 				if(a->from != NULL){
 					a->from->attack(a->to, a->n);

@@ -66,7 +66,8 @@ void Tile::draw(RenderWindow& window, Font* font, Color pCols[N], Sprite sprites
 	}
 }
 
-void Tile::attack(Tile* t, int n){
+void Tile::attack(Tile* t, int n){ //KEEP UPDATED WITH SERVER
+	n = min(n,power);
 	if(t->owner == owner){
 		power -= n;
 		t->power += n;

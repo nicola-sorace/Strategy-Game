@@ -41,8 +41,8 @@ void HUD::drawAction(int a, int n, RenderWindow& window, Font* font, Color pCols
 		pBox.setOrigin(10*z,10*z);
 		//pBox.setOutlineThickness(2);
 		//pBox.setOutlineColor(Color(26,26,26));
-		pCols[player].a = 240;
-		pBox.setFillColor(pCols[player]);
+		pCols[actions[a].from->owner].a = 240;
+		pBox.setFillColor(pCols[actions[a].from->owner]);
 		Text pNum("0", *font);
 		pNum.setCharacterSize(14*z);
 		//pNum.setFillColor(Color(26,26,26));
@@ -282,7 +282,7 @@ void HUD::events(Event& event, Land* land, RenderWindow& window){
 				break;
 			case Event::KeyReleased:
 				if(event.key.code == Keyboard::Return){ //TODO This should actually use a clickable button
-					Land::pending = PUSHACTIONS;
+					Land::pending = PUSH_ACTIONS;
 					//land->startAnim();
 				}
 			default:

@@ -6,16 +6,22 @@
 using namespace sf;
 using namespace std;
 
-#define MAXCONNECTIONS 2 //Number of players per game
+#define MAXCONNECTIONS 2 //Max players per game
 TcpSocket clients[MAXCONNECTIONS];
 
-#define N MAXCONNECTIONS+1 //Number of players in game + 1
+#define N MAXCONNECTIONS+1 //Max players per game + 1
 
-#define DONOTHING 1
-#define GRIDUPDATE 2
-#define PUSHACTIONS 3 //Client request to add actions to server
-#define ENDROUND 4 //Broadcast round over and list of actions
+//Network Flags
+#define DO_NOTHING 1
+#define GRID_UPDATE 2
+#define PLAYERS_UPDATE 3
+#define PUSH_ACTIONS 4 //Client request to add actions to server
+#define END_ROUND 5 //Broadcast round over and list of actions
 
+int players = 0; //Number of players
+int playersDoneWithRound = 0; //Number of players who have ended the round
+
+string names[MAXCONNECTIONS]; //Player name
 int pending[MAXCONNECTIONS]; //Next update to send
 
 struct Tile{
@@ -88,10 +94,10 @@ void commandListener(){
 			cout << "Shutting down server and ending CLI..." << endl;
 			exit(0);
 		}else if(regex_match(ars[0],eList)){		//LIST
-			cout << "#	IP Address	Status" << endl;
+			cout << "#	Name		IP Address	Status" << endl;
 			for(int i=0; i<sizeof(clients)/sizeof(*clients); i++){
 				if(clients[i].getRemoteAddress() != IpAddress::None){
-					cout << to_string(i) <<"	"<< clients[i].getRemoteAddress() <<"	"<< (ready[i] ? "READY" : "thinking...") << endl;
+					cout << to_string(i) <<"	"<< names[i] <<"	"<< clients[i].getRemoteAddress() <<"	"<< (ready[i] ? "READY" : "thinking...") << endl;
 				}
 			}
 		}else if(regex_match(ars[0],eActs)){		//ACTS
@@ -103,7 +109,7 @@ void commandListener(){
 				}
 			}
 		}else if(regex_match(ars[0],eSend)){		//SEND
-			while(pending[a1] != DONOTHING){}; //Wait for current pending to clear
+			while(pending[a1] != DO_NOTHING){}; //Wait for current pending to clear
 			pending[a1] = a2;
 		}else if(regex_match(ars[0],eKick)){		//KICK
 			if(clients[a1].getRemoteAddress() != IpAddress::None){
@@ -129,13 +135,56 @@ void commandListener(){
 
 }
 
+void attack(Tile* f, Tile* t, int n){ //KEEP UPDATED WITH CLIENT
+	//TODO Check tile ownership
+	n = min(n,f->power);
+	if(t->owner == f->owner){
+		f->power -= n;
+		t->power += n;
+	}else{
+		if(t->power < n){ //TODO Probability?
+			t->owner = f->owner;
+			f->power -= n;
+			t->power = n - t->power;
+
+		}else{
+			f->power -= n;
+			t->power -= n;
+		}
+	}
+}
+
+void applyActions(){
+	for(int i=0; i<actions.size(); i++){
+		action* a = &actions[i];
+		if(a->from != NULL){
+			attack(a->from, a->to, a->n);
+		}else{
+			//TODO Here goes code for creating power
+			cout << "SHIIITTTWHAAT???";
+		}
+	}
+}
+
 int client(int n){
 	TcpSocket* socket = &clients[n];
 
 	cout << '\r' << "New connection received from " << socket->getRemoteAddress() <<" ["<<to_string(n)<<"]"<< endl << " > ";
 
+	//Send server version
 	Packet packet;
 	packet << "StrategyGame-PreAlpha";
+	socket->send(packet);
+
+	//Get player's name
+	packet.clear();
+	socket->receive(packet);
+	packet >> names[n];
+
+	//Send player's ID
+	packet.clear();
+	players++; //TODO Consider potential race conditions
+	packet << n+1; //TODO Ability to rejoin session (with password?)
 	socket->send(packet);
 
 	int request = 0;
@@ -149,11 +198,11 @@ int client(int n){
 		if(socket->getRemoteAddress() != IpAddress::None && request>0){
 
 			switch(request){
-				case DONOTHING:
+				case DO_NOTHING:
 					//printRequest(socket,n,"DO NOTHING");
 					break;
-				case GRIDUPDATE:
-					printRequest(socket,n,"Updating client grid...");
+				case GRID_UPDATE:
+					printRequest(socket,n,"Updating client's map...");
 					for(int x=0; x < LW; x++){
 						for(int y=0; y < LH; y++){
 							packet.clear();
@@ -161,9 +210,18 @@ int client(int n){
 							socket->send(packet);
 						}
 					}
-					printRequest(socket,n,"Client grid is up to date.");
+					printRequest(socket,n,"Client's map is up to date.");
 					break;
-				case PUSHACTIONS:
+				case PLAYERS_UPDATE:
+					printRequest(socket,n,"Updating client's player list...");
+					for(int i=0; i<MAXCONNECTIONS-1; i++){
+						packet.clear();
+						packet << names[i];
+						socket->send(packet);
+					}
+					printRequest(socket,n,"Client's player list is up to date.");
+					break;
+				case PUSH_ACTIONS:
 					int actLength;
 					packet.clear();
 					socket->receive(packet);
@@ -201,15 +259,15 @@ int client(int n){
 			//SEND UPDATES:
 
 			bool roundOver = true;
-			for(int i=0; i<sizeof(ready)/sizeof(ready[0]); i++)if(!ready[i]){
+			for(int i=0; i<sizeof(ready)/sizeof(ready[0]); i++)if(!ready[i]){ //i.e. If any client isn't ready
 				roundOver = false;
 				break;
 			}
 
 			packet.clear();
-			if(roundOver){ //TODO Condition to end round
+			if(roundOver){
 				//TODO Reorder actions?
-				packet << ENDROUND;
+				packet << END_ROUND;
 				socket->send(packet);
 				packet.clear();
 				packet << static_cast<int>(actions.size());
@@ -220,19 +278,27 @@ int client(int n){
 					packet << actions[i].from->x << actions[i].from->y << actions[i].to->x << actions[i].to->y << actions[i].n;
 					socket->send(packet);
 				}
-				//TODO Clear actions and update grid once all clients have ended round
-				actions.clear();
-				for(int i=0; i<sizeof(ready)/sizeof(ready[0]); i++)ready[i]=false;
 
-				pending[n] = DONOTHING; //Any pending actions are cancelled since round is over
+
+				//cout << "Players done with round: " << to_string(playersDoneWithRound) << "	Players: " << to_string(players) << endl;
+				if(playersDoneWithRound-1 >= players){ //i.e. If this is the last client ending the round
+					playersDoneWithRound = 0; //TODO Find and fix inevitable race condition
+					applyActions();
+					actions.clear();
+					for(int i=0; i<sizeof(ready)/sizeof(ready[0]); i++)ready[i]=false;
+				}else playersDoneWithRound++;
+
+				pending[n] = DO_NOTHING; //Any pending actions are cancelled since round is over
 			}else{
 				int tmpPend = pending[n]; //Clone value so it can't be modified by other threads
 				packet << tmpPend;
 				socket->send(packet);
-				if(tmpPend != DONOTHING) pending[n] = DONOTHING;
+				if(tmpPend != DO_NOTHING) pending[n] = DO_NOTHING;
 			}
 
 		}else{
+			socket->disconnect();
+			players--;
 			cout << '\r' << "Client" <<" ["<<to_string(n)<<"] has disconnected";
 			cout << endl << " > ";
 			fflush(stdout);
@@ -278,7 +344,7 @@ int waitForConnections(TcpListener* listener){
 int main(){
 	srand (time(NULL));
 
-	for(int i=0; i<MAXCONNECTIONS; i++)pending[i] = DONOTHING;
+	for(int i=0; i<MAXCONNECTIONS; i++)pending[i] = DO_NOTHING;
 
 	TcpListener listener;
 	listener.listen(4242);
